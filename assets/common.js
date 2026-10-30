@@ -107,7 +107,7 @@ async function runOcr(jobs, onStep) {
         const { data: d } = await worker.recognize(await toCanvas(j.file, rot));
         const got = j.parse(d.text), n = Object.values(got).filter(Boolean).length;
         if (n > bestN) { best = got; bestN = n; }
-        if (j.ok(got)) break;
+        if (j.ok ? j.ok(got) : n > 1) break;
       }
       for (const k in best) if (best[k]) data[k] = best[k];
     }
