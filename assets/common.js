@@ -23,7 +23,8 @@ const BAD = /\b(GOVERNMENT|GOVT|INDIA|AADHAAR|UNIQUE|IDENTIFICATION|AUTHORITY|DO
 const DATE = /\b(\d{2})[\/\-.](\d{2})[\/\-.](\d{4})\b/;
 const PIN = /(?<!\d)\d{6}(?!\d)/g;
 const toLines = t => t.split("\n").map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
-const isName = l => /^[A-Za-z][A-Za-z .'-]{2,}$/.test(l) && l.split(" ").length <= 5 && !BAD.test(l);
+const wordOk = w => w.replace(/[^A-Za-z]/g, "").length >= 2 && /[aeiouy]/i.test(w);
+const isName = l => /^[A-Za-z][A-Za-z .'-]{2,}$/.test(l) && l.split(" ").length <= 5 && l.split(" ").every(wordOk) && !BAD.test(l);
 const title = s => s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
 const asciiRatio = l => [...l].filter(c => c.charCodeAt(0) < 128).length / Math.max(l.length, 1);
 
@@ -36,11 +37,13 @@ function findAadhaar(t) {
 }
 function parseFront(t) {
   const L = toLines(t), r = { aadhaar: findAadhaar(t) };
-  let di = L.findIndex(l => DATE.test(l) && /dob|birth/i.test(l));
-  if (di < 0) di = L.findIndex(l => DATE.test(l));
+  const notIssue = l => !/issue/i.test(l);
+  let di = L.findIndex(l => DATE.test(l) && /dob|birth/i.test(l) && notIssue(l));
+  if (di < 0) di = L.findIndex(l => DATE.test(l) && notIssue(l));
   if (di >= 0) { const m = L[di].match(DATE); r.dob = `${m[1]}/${m[2]}/${m[3]}`; }
   const g = t.match(/\b(female|male|transgender)\b/i);
   if (g) r.gender = title(g[1]);
+  if (di < 0) { const y = t.match(/(?:year of birth|yob)\s*[:\-]?\s*(\d{4})/i); if (y) r.dob = y[1]; }
   if (di > 0) for (let j = di - 1; j >= Math.max(di - 4, 0); j--) if (isName(L[j])) { r.name = title(L[j]); break; }
   return r;
 }
@@ -85,20 +88,28 @@ async function toCanvas(file, rot) {
   x.drawImage(bmp, -w / 2, -h / 2, w, h);
   return c;
 }
-// jobs: [{file, rot, parse}]  ->  milaya hua data
+// jobs: [{file, rot, parse, ok}]  ->  milaya hua data
+// Agar photo se kaam ka data na mile to photo ghuma ke (90, 270, 180) dobara padhta hai.
 async function runOcr(jobs, onStep) {
-  let pct = 0, i = 0;
+  let pct = 0, i = 0, t = 0;
   const worker = await Tesseract.createWorker("eng", 1, {
-    logger: m => { if (m.status === "recognizing text") { pct = Math.round(m.progress * 100); onStep && onStep(i, jobs.length, pct); } },
+    logger: m => { if (m.status === "recognizing text") { pct = Math.round(m.progress * 100); onStep && onStep(i, jobs.length, pct, t); } },
   });
   const data = {};
   try {
     await worker.setParameters({ tessedit_pageseg_mode: "6" });
     for (i = 0; i < jobs.length; i++) {
-      onStep && onStep(i, jobs.length, 0);
-      const { data: d } = await worker.recognize(await toCanvas(jobs[i].file, jobs[i].rot));
-      const got = jobs[i].parse(d.text);
-      for (const k in got) if (got[k]) data[k] = got[k];
+      const j = jobs[i], base = j.rot;
+      let best = {}, bestN = -1;
+      for (t = 0; t < 4; t++) {
+        const rot = [base, base + 90, base + 270, base + 180][t] % 360;
+        onStep && onStep(i, jobs.length, 0, t);
+        const { data: d } = await worker.recognize(await toCanvas(j.file, rot));
+        const got = j.parse(d.text), n = Object.values(got).filter(Boolean).length;
+        if (n > bestN) { best = got; bestN = n; }
+        if (j.ok(got)) break;
+      }
+      for (const k in best) if (best[k]) data[k] = best[k];
     }
   } finally { await worker.terminate(); }
   return data;
