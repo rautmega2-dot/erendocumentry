@@ -1,0 +1,27 @@
+:root{--bg:#f4f7f9;--card:#fff;--tx:#12202b;--mut:#5b6b78;--pri:#0b6e8a;--on:#fff;--ok:#117a45;--bad:#b3261e;--bd:#d9e2e8}
+@media(prefers-color-scheme:dark){:root{--bg:#0e171d;--card:#16232c;--tx:#e8f0f4;--mut:#93a6b3;--pri:#4cc2e0;--on:#06232c;--ok:#4ade80;--bad:#ff8a80;--bd:#27394484}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 "Noto Sans","Segoe UI",system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.6rem;line-height:1.25;margin:.2em 0 .3em}
+h2{font-size:1.1rem;margin:1.6em 0 .5em}
+p{margin:.4em 0}.mut{color:var(--mut);font-size:.92rem}
+a{color:var(--pri)}
+.back{display:inline-block;margin-bottom:8px;text-decoration:none}
+.card{display:block;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin:12px 0;color:inherit;text-decoration:none}
+a.card{border-left:5px solid var(--pri)}
+a.card b{font-size:1.1rem}
+.slot{display:grid;grid-template-columns:1fr 96px;gap:12px;align-items:center}
+.thumb{height:96px;border-radius:8px;border:1px dashed var(--bd);overflow:hidden;display:grid;place-items:center;background:var(--bg)}
+.thumb img{max-width:100%;max-height:100%;transition:transform .2s}
+label{display:block;font-weight:600;margin:12px 0 4px}
+input[type=text],textarea{width:100%;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px}
+input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--pri);outline-offset:1px}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px 18px;background:var(--pri);color:var(--on);cursor:pointer}
+button.alt{background:transparent;color:var(--pri);border:1px solid var(--pri);padding:8px 12px}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.tag{font-size:.85rem;margin-left:6px}.good{color:var(--ok)}.warn{color:var(--bad)}
+.note{border-left:4px solid var(--pri);padding:6px 12px;background:var(--card);margin:14px 0}
+[hidden]{display:none!important}
