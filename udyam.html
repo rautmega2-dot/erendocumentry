@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Udyam Registration</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <a class="back" href="index.html">&larr; Sab kaam</a>
+  <h1>Udyam Registration</h1>
+  <p class="mut">Aadhaar (aage, peeche) aur PAN ki photo daalo. Photo is phone me hi padhi jati hai, kahin upload nahi hoti.</p>
+
+  <section id="slots"></section>
+  <label><input type="checkbox" id="consent"> Mere documents sirf Udyam form bharne ke liye use ho sakte hain.</label>
+  <div class="row"><button id="read" disabled>Details padho</button></div>
+  <p id="status" class="mut" role="status"></p>
+
+  <section id="review" hidden>
+    <h2>Details check karo</h2>
+    <p class="mut">Jo galat ho use theek kar do.</p>
+    <div id="form"></div>
+    <div class="row"><button id="confirm">Sab sahi hai, aage badho</button></div>
+    <p id="msg"></p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="assets/common.js"></script>
+<script>
+const SLOTS = [
+  { key: "front", label: "Aadhaar ke AAGE wala hissa", parse: parseFront },
+  { key: "back",  label: "Aadhaar ke PEECHE wala hissa", parse: parseBack },
+  { key: "pan",   label: "PAN card", parse: parsePan },
+];
+const st = {};  // st[key] = {file, rot}
+const $ = id => document.getElementById(id);
+
+$("slots").innerHTML = SLOTS.map(s => `
+  <div class="card slot">
+    <div><b>${s.label}</b>
+      <input type="file" accept="image/*" id="f-${s.key}" style="display:block;margin:8px 0">
+      <button class="alt" id="r-${s.key}" hidden>Photo ghumao</button></div>
+    <div class="thumb"><img id="p-${s.key}" alt="" hidden></div>
+  </div>`).join("");
+
+SLOTS.forEach(s => {
+  $("f-" + s.key).onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    st[s.key] = { file, rot: 0 };
+    const img = $("p-" + s.key); img.src = URL.createObjectURL(file); img.hidden = false; img.style.transform = "";
+    $("r-" + s.key).hidden = false; refresh();
+  };
+  $("r-" + s.key).onclick = () => {
+    const o = st[s.key]; o.rot = (o.rot + 90) % 360;
+    $("p-" + s.key).style.transform = `rotate(${o.rot}deg)`;
+  };
+});
+function refresh() { $("read").disabled = !($("consent").checked && SLOTS.every(s => st[s.key])); }
+$("consent").onchange = refresh;
+
+$("read").onclick = async () => {
+  $("read").disabled = true; $("review").hidden = true;
+  try {
+    const data = await runOcr(SLOTS.map(s => ({ ...st[s.key], parse: s.parse })), (i, n, p) =>
+      $("status").textContent = `Photo ${i + 1}/${n} padh raha hoon... ${p}% (pehli baar thoda time lagta hai)`);
+    showForm(data);
+    $("status").textContent = "Ho gaya. Neeche details check karo.";
+  } catch (e) {
+    console.error(e);
+    $("status").textContent = "Photo padhne me dikkat aayi. Net check karke dobara try karo.";
+  }
+  $("read").disabled = false;
+};
+
+function mark(k, v) {
+  if (k === "aadhaar") return v ? (aadhaarOk(v.replace(/\s/g, "")) ? ["ok", "✅"] : ["bad", "⚠️ number galat lag raha hai"]) : ["bad", "❌ nahi mila"];
+  if (k === "pan") return v ? (panOk(v) ? ["ok", "✅"] : ["bad", "⚠️ PAN aisa hona chahiye: ABCDE1234F"]) : ["bad", "❌ nahi mila"];
+  if (k === "dob") return v && dobOk(v) ? ["ok", "✅"] : ["bad", "⚠️ DD/MM/YYYY me likho"];
+  return v ? ["ok", ""] : ["bad", "❌ nahi mila, khud bharo"];
+}
+function showForm(d) {
+  $("form").innerHTML = Object.entries(FIELDS).map(([k, label]) => {
+    const v = (d[k] || "").replace(/"/g, "&quot;");
+    const input = k === "address" ? `<textarea id="i-${k}" rows="3">${d[k] || ""}</textarea>` : `<input type="text" id="i-${k}" value="${v}">`;
+    return `<label for="i-${k}">${label}<span class="tag" id="t-${k}"></span></label>${input}`;
+  }).join("");
+  Object.keys(FIELDS).forEach(k => { const el = $("i-" + k); el.oninput = () => tag(k); tag(k); });
+  $("review").hidden = false; $("review").scrollIntoView({ behavior: "smooth" });
+}
+function tag(k) {
+  const el = $("i-" + k); if (k === "pan") el.value = el.value.toUpperCase();
+  const [c, t] = mark(k, el.value.trim());
+  $("t-" + k).className = "tag " + (c === "ok" ? "good" : "warn"); $("t-" + k).textContent = t;
+}
+const values = () => Object.fromEntries(Object.keys(FIELDS).map(k => [k, $("i-" + k).value.trim()]));
+
+$("confirm").onclick = async () => {
+  const d = values(); d.aadhaar = d.aadhaar.replace(/\s/g, "");
+  if (!aadhaarOk(d.aadhaar) || !panOk(d.pan) || !dobOk(d.dob)) {
+    $("msg").className = "warn"; $("msg").textContent = "Aadhaar, PAN ya janm tithi sahi nahi hai. Pehle usse theek karo."; return;
+  }
+  sessionStorage.setItem("udyam_details", JSON.stringify(d));
+  await submitJob("udyam", d);
+  $("msg").className = "good"; $("msg").textContent = "Details confirm ho gayi. (Test mode: queue aur payment agle step me judenge.)";
+};
+</script>
+</body>
+</html>

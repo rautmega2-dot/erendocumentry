@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sarkari Kaam Helper</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <h1>Kaunsa kaam karwana hai?</h1>
+  <p class="mut">Neeche se kaam chuno. Aapke documents is phone me hi padhe jate hain.</p>
+  <div id="list"></div>
+</main>
+<script src="assets/services.js"></script>
+<script>
+document.getElementById("list").innerHTML = SERVICES.map(s =>
+  `<a class="card" href="${s.page}"><b>${s.name}</b><p class="mut">${s.desc}</p></a>`).join("");
+</script>
+</body>
+</html>
