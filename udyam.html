@@ -69,7 +69,7 @@ $("read").onclick = async () => {
     $("status").textContent = "Ho gaya. Neeche details check karo.";
   } catch (e) {
     console.error(e);
-    $("status").textContent = "Photo padhne me dikkat aayi. Net check karke dobara try karo.";
+    $("status").textContent = "Photo padhne me dikkat aayi. Net check karke dobara try karo. (Error: " + (e && e.message || e) + ")";
   }
   $("read").disabled = false;
 };
